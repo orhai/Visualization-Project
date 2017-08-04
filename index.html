@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+.zipcode {
+  stroke: steelblue;
+  fill: #FFF;
+}
+</style>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+  /*
+  data comes from: https://github.com/smartchicago/chicago-atlas/blob/master/db/import/zipcodes.geojson
+  lots of help from http://stackoverflow.com/questions/14492284/center-a-map-in-d3-given-a-geojson-object
+  */
+  var svg = [];
+  var projection = [];
+  //Load in GeoJSON data
+  d3.json("Boundaries - Wards (2015-).geojson", function(json) {
+
+    //Width and height
+    var width = 900;
+    var height = 450;
+
+    // create a first guess for the projection
+    var center = d3.geo.centroid(json)
+    var scale = 150;
+    projection = d3.geo.mercator().scale(scale).center(center);
+    console.log("XY of [-87.67762151065274, 41.91775780106294] :" + projection([-87.67762151065274, 41.91775780106294])[0]);
+    //Define path generator
+    var path = d3.geo.path()
+                    .projection(projection);
+
+    // using the path determine the bounds of the current map and use
+    // these to determine better values for the scale and translation
+    var bounds = path.bounds(json);
+    console.log("max longtitude: " +bounds[1][0]);
+    var hscale = scale * width / (bounds[1][0] - bounds[0][0]);
+    console.log("hscale: " +hscale);
+    console.log("max langitude: " +bounds[1][1]);
+    var vscale = scale * height / (bounds[1][1] - bounds[0][1]);
+    var scale = (hscale < vscale) ? hscale : vscale;
+    var offset = [width - (bounds[0][0] + bounds[1][0]) / 2,
+                     height - (bounds[0][1] + bounds[1][1]) / 2];
+
+    // new projection
+    projection = d3.geo.mercator().center(center)
+     .scale(scale * 0.5).translate(offset);
+    path = path.projection(projection);
+
+    //Create SVG element
+    svg = d3.select(".chart")
+               .attr("width", width)
+               .attr("height", height)
+
+    //Bind data and create one path per GeoJSON feature
+    svg.selectAll("path")
+      .data(json.features)
+      .enter()
+      .append("path")
+      .attr("d", path)
+      .attr("class", "Ward");
+
+  });
+
+
+  var crimeTypes = [];
+  var crimeLoacationTypes = [];
+  var wards = [];
+  var crimes =  [];
+  var crimes =  [];
+  d3.json("crimes_2017.json", function(json) {
+    crimes =  json.data.slice(0,100);
+    crimes2 =  json.data;
+    console.log("crimes length: " + crimes.length);
+    console.log("crime 1: " + crimes[1]);
+    console.log("crime 1 latitude: " + crimes[1][27]);
+    console.log("crime 1 longitude: " + crimes[1][28]);
+    svg.selectAll("circle").data(crimes).enter().append("circle")
+                            .attr("class","crime")
+                            .attr("cx",function(d){
+                                  console.log("crime location degrees: " + d[28] + ','+ d[27]);
+                                  console.log("crime location XY: " + projection([d[28], d[27]]));
+                                  return projection([d[28], d[27]])[0];
+                            })
+                            .attr("cy",function(d){
+                                  return projection([d[28], d[27]])[1];
+                            })
+                            .attr("r","0.5px")
+                            .attr("fill","blue");
+    getCrimeList(crimes2);
+  });
+
+  var getCrimeList = function(crimes){
+      for(var i=0; i < crimes.length ; i++){
+          if(crimeTypes.indexOf(crimes[i][13]) == -1){
+            crimeTypes.push(crimes[i][13]);
+          }
+      }
+      console.log("Types: "+crimeTypes);
+  }
+
+  var getCrimeLocationsList = function(crimes){
+      for(var i=0; i < crimes.length ; i++){
+          if(crimeLoacationTypes.indexOf(crimes[i][15]) == -1){
+            crimeLoacationTypes.push(crimes[i][15]);
+          }
+      }
+      console.log("Types: "+crimeLoacationTypes);
+  }
+
+  var getWardsList = function(crimes){
+      for(var i=0; i < crimes.length ; i++){
+          if(wards.indexOf(crimes[i][20]) == -1){
+            wards.push(crimes[i][20]);
+          }
+      }
+      console.log("Types: "+wards);
+  }
+
+  ward1AssauLtBymonths = [0,0,0,0,0,0,0];
+  var getWard1AssauLtBymonths = function(crimes, wardNumber , crimeType){
+      for(var i=0; i < crimes.length ; i++){
+          month = parseInt(crimes[i][10].split('-')[1]);
+          //console.log("currunt crime type is: "+crimes[i][13]+ " and the month number is: "+ month);
+          if(crimes[i][13] == crimeType  && crimes[i][20] == wardNumber){
+            ward1AssauLtBymonths[month-1]++;
+          }
+      }
+      console.log("Ward 1 ASSAULT counter by months: "+ward1AssauLtBymonths);
+      ward1AssauLtBymonths = [0,0,0,0,0,0,0];
+  }
+
+  wardAssauLtBymonths = {};
+  var getWardAssauLtBymonths = function(crimes, wardNumber , crimeType){
+      for(var i=0; i < crimes.length ; i++){
+          month_day = parseInt(crimes[i][10].split('-')[1])+"-"+parseInt(crimes[i][10].split('-')[2]);
+          //console.log("currunt crime type is: "+crimes[i][13]+ " and the month number is: "+ month);
+          if(crimes[i][13] == crimeType  && crimes[i][20] == wardNumber){
+            ward1AssauLtBymonths[month_day]++;
+          }
+      }
+      console.log("Ward 1 ASSAULT counter by months: "+ward1AssauLtBymonths);
+      ward1AssauLtBymonths = [0,0,0,0,0,0,0];
+  }
+</script>
+
+<body>
+  <svg class="chart"></svg>
+</body>
